@@ -6,20 +6,96 @@ output:
 ---
 
 
+
 ## Loading and preprocessing the data
-
-
+```{r}
+if (!file.exists("activity.csv")) {
+  unzip("activity.zip")
+}
+original <- read.csv("activity.csv")
+dfNa <- original
+df <- na.omit(dfNa)
+```
 
 ## What is mean total number of steps taken per day?
 
+### Total steps per day
+```{r}
+total <- aggregate(df$steps, list(df$date), sum)
+colnames(total) <- c('date', 'total_steps')
+total
+```
 
+### Histogram
+```{r fig.width=6, fig.height=4}
+hist(total$total_steps, ylab = 'Number of Days', main="Total Steps Per Day")
+```
+
+### Mean and median
+```{r}
+mean(total$total_steps)
+median(total$total_steps)
+```
 
 ## What is the average daily activity pattern?
+### Time series graph
+```{r fig.width=6, fig.height=4}
+daily <- aggregate(df$steps, list(df$interval), mean)
+colnames(daily) <- c('interval', 'average')
+plot(daily, type="l", main="Daily Activity Pattern", ylab = "Number of Steps", xlab = "5 min interval")
+```
 
-
+### Interval with the max value
+```{r}
+daily[daily$average == max(daily$average), ]
+```
 
 ## Imputing missing values
 
+### Total number of missing values
+```{r}
+sum(is.na(dfNa$steps))
+```
 
+### Fill the missing values with average interval
+```{r fig.width=6, fig.height=4}
+missingIntervals <- unique(dfNa[is.na(dfNa$steps), 'interval'])
+for (i in 1:length(missingIntervals)) {
+  interval <- missingIntervals[i]  
+   dfNa[is.na(dfNa$steps) & dfNa$interval == interval, 'steps']  <- daily[daily$interval == interval, 'average']
+}
+total2 <- aggregate(dfNa$steps, list(dfNa$date), sum)
+hist(total2$x, ylab = 'Number of Days', main="Total Steps Per Day (Imputed)")
+```
+### Mean and median
+```{r}
+mean(total2$x)
+median(total2$x)
+isSameMean <- mean(total2$x) == mean(total$total_steps)
+isSameMedian <- median(total2$x) == median(total$total_steps)
+isSameMean
+isSameMedian
+``` 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+### Add weekday/weekend column
+```{r}
+getDay <- function (d) {
+  day <- as.character(weekdays(as.Date(d)))
+  ifelse(day %in% c("Saturday", "Sunday"), 'weekend', 'weekday')
+}
+dfNa$day <- getDay(dfNa$date)
+```
+
+### Weekday-weekend plots
+```{r fig.width=12, fig.height=8}
+wd <- dfNa[dfNa$day == 'weekday', ]
+we <- dfNa[dfNa$day == 'weekend', ]
+wdDaily <- aggregate(wd$steps, list(wd$interval), mean)
+weDaily <- aggregate(we$steps, list(we$interval), mean)
+
+par(mfrow=c(2,1))
+plot(wdDaily, type="l", main="Weekday", ylab = "Number of Steps", xlab = "5 min interval")
+plot(weDaily, type="l", main="Weekend", ylab = "Number of Steps", xlab = "5 min interval")
+```
